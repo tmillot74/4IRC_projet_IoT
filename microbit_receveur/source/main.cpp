@@ -22,8 +22,8 @@ void onData(MicroBitEvent) {
     ManagedString decryptedMessage = xorEncryptDecrypt(encryptedMessage, encryptionKey);
 
     // Débogage : afficher le message reçu (chiffré et déchiffré)
-    uBit.serial.printf("Message chiffré reçu : %s\n", encryptedMessage.toCharArray());
-    uBit.serial.printf("Message déchiffré : %s\n", decryptedMessage.toCharArray());
+    // uBit.serial.printf("Message chiffré reçu : %s\r\n", encryptedMessage.toCharArray());
+    uBit.serial.printf("Message déchiffré : %s\r\n", decryptedMessage.toCharArray());
 
     // Envoi d'un ACK chiffré
     ManagedString ack = xorEncryptDecrypt("ACK", encryptionKey);

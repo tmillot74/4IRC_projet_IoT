@@ -26,7 +26,7 @@ int main() {
     while (1) {
         // Lecture du port série
         if (uBit.serial.isReadable()) {
-            uBit.serial.printf("Entrez un message à envoyer : \n");
+            uBit.serial.printf("Entrez un message à envoyer : \r\n");
             ManagedString plainText = uBit.serial.readUntil('\n');
             uBit.serial.printf("Message à envoyer : %s\n", plainText.toCharArray());
 
@@ -41,12 +41,12 @@ int main() {
                     ManagedString decryptedAck = xorEncryptDecrypt(receivedAck, encryptionKey);
                     if (decryptedAck == "ACK") {
                         ackReceived = true;
-                        uBit.serial.printf("ACK reçu pour le message : %s\n", plainText.toCharArray());
+                        uBit.serial.printf("ACK reçu pour le message : %s\r\n", plainText.toCharArray());
                     }
 
                     if (!ackReceived) {
                         uBit.sleep(100);
-                        uBit.serial.printf("Aucun ACK reçu pour : %s. Réémission.\n", plainText.toCharArray());
+                        uBit.serial.printf("Aucun ACK reçu pour : %s. Réémission.\r\n", plainText.toCharArray());
                     }
                 } while (!ackReceived);
             }

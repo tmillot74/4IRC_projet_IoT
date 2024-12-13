@@ -13,7 +13,7 @@ FILENAME        = "values.txt"
 LAST_VALUE      = ""
 
 # send serial message 
-SERIALPORT = "/dev/ttyACM1"
+SERIALPORT = "/dev/ttyACM0"
 BAUDRATE = 115200
 ser = serial.Serial()
 
