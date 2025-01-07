@@ -35,6 +35,7 @@ def initUART():
         print('Starting Up Serial Monitor')
         try:
                 ser.open()
+                
         except serial.SerialException:
                 print("Serial {} port not available".format(SERIALPORT))
                 exit()
@@ -55,13 +56,29 @@ if __name__ == '__main__':
         try:
                 # while ser.isOpen() :
                         for i in range(5600):
-                                ser.write(("data"+str(i)+"\n").encode())
-                                by = b'0'
-                                data_str = b""
-                                while by != b'\n':
-                                    by = ser.read(1)
-                                    data_str+=by
-                                print(data_str.decode("utf-8"),"")
+                                ackReceived:bool = False
+                                while not ackReceived:
+                                        ser.write(("data"+str(i)+"\r\n").encode())
+                                        by = b'0'
+                                        data_str = b""
+                                        while by != b'\n':
+                                                by = ser.read(1)
+                                                data_str+=by
+                                        print(data_str.decode("utf-8"),"")
+
+                                        # time.sleep(0.1)
+                                        if data_str.decode("utf-8") == "ACK\r\n":
+                                                ackReceived = True
+                                        else:
+                                                print("Resending")
+
+                                # ser.write(("data"+str(i)+"\n").encode())
+                                # by = b'0'
+                                # data_str = b""
+                                # while by != b'\n':
+                                #     by = ser.read(1)
+                                #     data_str+=by
+                                # print(data_str.decode("utf-8"),"")
                         # ser.write("pouet\n".encode())
                         # by = b'0'
                         # data_str = b""

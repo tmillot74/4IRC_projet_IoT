@@ -1,0 +1,29 @@
+services:
+  redis-stack-1:
+    image: redis/redis-stack:latest
+    container_name: redis-stack-1
+    ports:
+      - 16379:6379
+      - 18001:8001
+    volumes:
+      - redis-stack-data-1:/data
+    networks:
+      - redis-stack-network-1
+  redis-stack-2:
+    image: redis/redis-stack:latest
+    container_name: redis-stack-2
+    ports:
+      - 26379:6379
+      - 28001:8001
+    volumes:
+      - redis-stack-data-2:/data
+    networks:
+      - redis-stack-network-2
+
+volumes:
+  redis-stack-data-1:
+  redis-stack-data-2:
+
+networks:
+  redis-stack-network-1:
+  redis-stack-network-2:
