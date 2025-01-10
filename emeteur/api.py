@@ -7,7 +7,7 @@ import time
 app = Flask(__name__)
 
 # Connexion à la base de données Redis
-redis_client = redis.StrictRedis(host='localhost', port=16379, db=0, decode_responses=True)
+redis_client = redis.StrictRedis(host='10.42.228.117', port=16379, db=0, decode_responses=True)
 
 # Dictionnaire pour raccourcir les noms de champs
 FIELD_MAPPING = {
