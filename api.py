@@ -9,10 +9,20 @@ app = Flask(__name__)
 # Connexion à la base de données Redis
 redis_client = redis.StrictRedis(host='localhost', port=16379, db=0, decode_responses=True)
 
+# Dictionnaire pour raccourcir les noms de champs
+FIELD_MAPPING = {
+    'coordonneeX': 'x',
+    'coordonneeY': 'y',
+    'temperature': 't',
+    'portee': 'p',
+    'etat': 'e'
+}
+
 # Route qui accepte une requête POST
 @app.route('/api/capteurs', methods=['POST'])
 def receive_data():
     start_time = time.time()  # Début du chronométrage pour mesurer la durée du traitement
+
     try:
         # Récupérer les données JSON de la requête
         data = request.get_json()
@@ -30,6 +40,12 @@ def receive_data():
                 print(f"[ERROR] L'élément ne contient pas de champ 'id'. Élément : {item}")  # Log d'erreur
                 return jsonify({"error": "Each item must contain an 'id' field."}), 400
 
+            # Reformater l'élément en remplaçant les noms de champs
+            formatted_item = {'id': item['id']}  # L'ID reste inchangé
+            for key, value in item.items():
+                if key != 'id' and key in FIELD_MAPPING:
+                    formatted_item[FIELD_MAPPING[key]] = value  # Remplacer le nom du champ
+
             redis_key = f"capteur:{item['id']}"  # Génération d'une clé unique pour chaque capteur
             print(f"[INFO] Traitement de l'élément avec clé Redis : {redis_key}")  # Affiche la clé en cours de traitement
 
@@ -41,15 +57,15 @@ def receive_data():
                     existing_data = json.loads(existing_data)  # Si les données sont une chaîne, les convertir en JSON
 
                 # Mettre à jour uniquement si les nouvelles données diffèrent
-                if existing_data != item:
-                    existing_data.update(item)  # Mise à jour des champs de l'objet
+                if existing_data != formatted_item:
+                    existing_data.update(formatted_item)  # Mise à jour des champs de l'objet
                     redis_client.json().set(redis_key, "$", existing_data)  # Stockage des données mises à jour
                     print(f"[INFO] Données mises à jour pour la clé : {redis_key}")  # Journal de mise à jour
                 else:
                     print(f"[INFO] Les données sont identiques. Aucune mise à jour n’a été effectuée pour la clé : {redis_key}")
             else:
                 # Si la clé n'existe pas, créer une nouvelle entrée
-                redis_client.json().set(redis_key, "$", item)
+                redis_client.json().set(redis_key, "$", formatted_item)
                 print(f"[INFO] Nouvelles données stockées pour la clé : {redis_key}")  # Journalisation des nouvelles données
 
         # Calculer le temps total de traitement
@@ -60,10 +76,12 @@ def receive_data():
         }
         print("[INFO]", response)  # Affiche le résumé du traitement
         return jsonify(response), 200
+
     except Exception as e:
         # En cas d'exception, afficher l'erreur et renvoyer une réponse d'erreur
         print(f"[ERROR] Erreur lors du traitement : {str(e)}")  # Log d'exception
         return jsonify({"error": str(e)}), 500
+
 
 if __name__ == '__main__':
     # Lancer l'application Flask sur le port 8080

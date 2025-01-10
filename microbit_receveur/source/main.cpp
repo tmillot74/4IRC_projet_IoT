@@ -73,6 +73,7 @@ void onData(MicroBitEvent) {
 int main() {
     uBit.init();
     uBit.radio.enable();
+    uBit.radio.setGroup(120);
     uBit.serial.setRxBufferSize(254);
     uBit.serial.setTxBufferSize(254);
     uBit.serial.baud(115200);

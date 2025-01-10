@@ -1,93 +1,130 @@
-# Program to control passerelle between Android application
-# and micro-controller through USB tty
 import time
-import argparse
-import signal
-import sys
-import socket
-import socketserver
+import redis
+import json
 import serial
 import threading
 
-FILENAME        = "values.txt"
-LAST_VALUE      = ""
+# Configuration de Redis
+REDIS_HOST = 'localhost'
+REDIS_PORT = 16379
+REDIS_DB = 0
+redis_client = redis.StrictRedis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, decode_responses=True)
 
-# send serial message 
-SERIALPORT = "/dev/ttyACM0"
-BAUDRATE = 115200
+# Configuration du port série
+SERIAL_PORT = "/dev/ttyACM0"
+BAUD_RATE = 115200
 ser = serial.Serial()
 
-def initUART():        
-        # ser = serial.Serial(SERIALPORT, BAUDRATE)
-        ser.port=SERIALPORT
-        ser.baudrate=BAUDRATE
-        ser.bytesize = serial.EIGHTBITS #number of bits per bytes
-        ser.parity = serial.PARITY_NONE #set parity check: no parity
-        ser.stopbits = serial.STOPBITS_ONE #number of stop bits
-        ser.timeout = None          #block read
+def init_uart():
+    """Initialise la connexion UART."""
+    ser.port = SERIAL_PORT
+    ser.baudrate = BAUD_RATE
+    ser.bytesize = serial.EIGHTBITS
+    ser.parity = serial.PARITY_NONE
+    ser.stopbits = serial.STOPBITS_ONE
+    ser.timeout = None
+    ser.xonxoff = False
+    ser.rtscts = False
+    ser.dsrdtr = False
 
-        # ser.timeout = 0             #non-block read
-        # ser.timeout = 2              #timeout block read
-        ser.xonxoff = False     #disable software flow control
-        ser.rtscts = False     #disable hardware (RTS/CTS) flow control
-        ser.dsrdtr = False       #disable hardware (DSR/DTR) flow control
-        #ser.writeTimeout = 0     #timeout for write
-        print('Starting Up Serial Monitor')
-        try:
-                ser.open()
-                
-        except serial.SerialException:
-                print("Serial {} port not available".format(SERIALPORT))
-                exit()
+    print("[INFO] Initialisation du port série...")
+    try:
+        ser.open()
+        print("[INFO] Port série ouvert avec succès.")
+    except serial.SerialException as e:
+        print(f"[ERROR] Impossible d'ouvrir le port série : {e}")
+        exit()
 
+def send_uart_message(message):
+    """Envoie un message via le port série."""
+    try:
+        ser.write(message.encode())
+        print(f"[INFO] Message envoyé : {message}")
+    except Exception as e:
+        print(f"[ERROR] Erreur lors de l'envoi du message : {e}")
 
+def sendWithAck(message):
+    """Envoie un message sur le port série et attend un acquittement (ACK)."""
+    ackReceived = False
+    while not ackReceived:
+        ser.write((message + "\r\n").encode())
+        print(f"[DEBUG] Message envoyé : {message}")
 
-def sendUARTMessage(msg):
-    ser.write(msg)
-    print("Message <" + msg + "> sent to micro-controller." )
+        response = b''
+        while True:
+            byte = ser.read(1)
+            if byte == b'\n':
+                break
+            response += byte
 
+        response_decoded = response.decode('utf-8').strip()
+        print(f"[DEBUG] Réponse reçue : {response_decoded}")
 
-# Main program logic follows:
-if __name__ == '__main__':
-        initUART()
-        f= open(FILENAME,"a")
-        print ('Press Ctrl-C to quit.')
+        if response_decoded == "ACK":
+            ackReceived = True
+            print("[INFO] Acquittement reçu pour le message.")
+        else:
+            print("[WARNING] Pas d'acquittement, renvoi du message.")
 
-        try:
-                # while ser.isOpen() :
-                        for i in range(5600):
-                                ackReceived:bool = False
-                                while not ackReceived:
-                                        ser.write(("data"+str(i)+"\r\n").encode())
-                                        by = b'0'
-                                        data_str = b""
-                                        while by != b'\n':
-                                                by = ser.read(1)
-                                                data_str+=by
-                                        print(data_str.decode("utf-8"),"")
+def fetch_and_send_data():
+    """Récupère les données de Redis et les envoie via UART."""
+    try:
+        start_time = time.time()
 
-                                        # time.sleep(0.1)
-                                        if data_str.decode("utf-8") == "ACK\r\n":
-                                                ackReceived = True
-                                        else:
-                                                print("Resending")
+        # Récupérer toutes les clés correspondant aux capteurs
+        keys = redis_client.keys("capteur:*")
+        print(f"[INFO] Clés récupérées : {keys}")
 
-                                # ser.write(("data"+str(i)+"\n").encode())
-                                # by = b'0'
-                                # data_str = b""
-                                # while by != b'\n':
-                                #     by = ser.read(1)
-                                #     data_str+=by
-                                # print(data_str.decode("utf-8"),"")
-                        # ser.write("pouet\n".encode())
-                        # by = b'0'
-                        # data_str = b""
-                        # while by != b'\n':
-                        #     by = ser.read(1)
-                        #     data_str+=by
-                        # print(data_str.decode("utf-8"),"")
-        except (KeyboardInterrupt, SystemExit):
-                f.close()
-                ser.close()
-                exit()
+        sensor_data = []
+        for key in keys:
+            data = redis_client.json().get(key)
+            if data:
+                print(f"[INFO] Données récupérées pour {key} : {data}")
+                sensor_data.append(data)
 
+                if len(sensor_data) == 2:
+                    message = json.dumps(sensor_data)
+                    sendWithAck(message)
+                    sensor_data = []
+
+        if sensor_data:
+            message = json.dumps(sensor_data)
+            sendWithAck(message)
+
+        print("[INFO] Toutes les données ont été envoyées.")
+
+        elapsed_time = time.time() - start_time
+        print(f"[INFO] Temps d'exécution du thread : {elapsed_time:.2f} secondes.")
+    except Exception as e:
+        print(f"[ERROR] Erreur lors de la récupération ou de l'envoi des données : {e}")
+
+def periodic_thread_runner():
+    """Lance le thread périodiquement si la dernière exécution est terminée et que l'intervalle est respecté."""
+    last_execution_time = 0
+    thread_lock = threading.Lock()
+
+    def run_thread():
+        nonlocal last_execution_time
+        with thread_lock:
+            if time.time() - last_execution_time >= 60:
+                print("[INFO] Lancement du thread de récupération et envoi des données.")
+                fetch_and_send_data()
+                last_execution_time = time.time()
+
+    while True:
+        run_thread()
+        time.sleep(1)
+
+if __name__ == "__main__":
+    init_uart()
+    print("[INFO] Démarrage de la tâche périodique...")
+
+    thread = threading.Thread(target=periodic_thread_runner, daemon=True)
+    thread.start()
+
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("[INFO] Arrêt du programme.")
+        ser.close()
