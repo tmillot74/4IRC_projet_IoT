@@ -33,13 +33,13 @@ void onData(MicroBitEvent) {
     int messageLength = buffer[2];
     char message[messageLength];
     memcpy(message, buffer.getBytes()+3, messageLength);
-    uBit.serial.printf("Message chiffré reçu : %s\r\n", message);
+    // uBit.serial.printf("Message chiffré reçu : %s\r\n", message);
 
 
     ManagedString encryptedMessage = ManagedString(message);
-    uBit.serial.printf("%d\r\n", senderId);
-    uBit.serial.printf("%d\r\n", receiverId);
-    uBit.serial.printf("%d\r\n", messageLength);
+    // uBit.serial.printf("%d\r\n", senderId);
+    // uBit.serial.printf("%d\r\n", receiverId);
+    // uBit.serial.printf("%d\r\n", messageLength);
     // uBit.serial.printf("Message chiffré reçu : %s\r\n", encryptedMessage.toCharArray());
 
     // Vérifier si le message est destiné à cette carte
@@ -62,12 +62,13 @@ void onData(MicroBitEvent) {
 
     // Débogage : afficher le message reçu (chiffré et déchiffré)
     // uBit.serial.printf("Message chiffré reçu : %s\r\n", encryptedMessage.toCharArray());
-    uBit.serial.printf("Message déchiffré : %s\r\n", decryptedMessage.toCharArray());
+    // uBit.serial.printf("Message déchiffré : %s\r\n", decryptedMessage.toCharArray());
+    uBit.serial.printf("%s\r\n", decryptedMessage.toCharArray());
 
     // Envoi d'un ACK chiffré
     ManagedString ack = xorEncryptDecrypt("ACK", encryptionKey);
     uBit.radio.datagram.send(ack);
-    uBit.serial.printf("ACK envoyé : %s\r\n", ack.toCharArray());
+    // uBit.serial.printf("ACK envoyé : %s\r\n", ack.toCharArray());
 }
 
 int main() {
