@@ -50,19 +50,17 @@ def format_and_save_to_redis(raw_data):
     try:
         # Chargement des données JSON
         data_list = json.loads(raw_data)
-        formatted_data = []
 
         for sensor_data in data_list:
             formatted_sensor = {new_key: sensor_data[old_key] for new_key, old_key in FIELD_MAPPING.items() if old_key in sensor_data}
             formatted_sensor['id'] = sensor_data['id']  # Ajout de l'ID sans mapping
-            formatted_data.append(formatted_sensor)
 
-        # Ajout dans Redis au format JSON
-        timestamp = datetime.now().isoformat()
-        key = f"capteur:{formatted_sensor['id']}"
-        redis_client.json().set(key, '$', formatted_data)
+            # Ajout dans Redis au format JSON
+            timestamp = datetime.now().isoformat()
+            key = f"capteur:{formatted_sensor['id']}"
+            redis_client.json().set(key, '$', formatted_sensor)
 
-        print(f"[INFO] Données formatées et ajoutées à Redis : {key} -> {formatted_data}")
+            print(f"[INFO] Données formatées et ajoutées à Redis : {key} -> {formatted_sensor}")
     except json.JSONDecodeError as e:
         print(f"[ERROR] Erreur de décodage JSON : {e}")
     except Exception as e:
