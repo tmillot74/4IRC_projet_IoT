@@ -1,15 +1,13 @@
 import time
-import redis
 import serial
-import threading
-from datetime import datetime, timedelta
 import json
+import paho.mqtt.client as mqtt
+from datetime import datetime
 
-# Configuration de Redis
-REDIS_HOST = 'localhost'
-REDIS_PORT = 26379
-REDIS_DB = 0
-redis_client = redis.StrictRedis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, decode_responses=True)
+# Configuration MQTT
+MQTT_BROKER = 'localhost'
+MQTT_PORT = 1883
+MQTT_TOPIC = 'sensor/data'
 
 # Configuration du port série
 SERIAL_PORT = "/dev/ttyACM1"
@@ -45,8 +43,8 @@ def init_uart():
         print(f"[ERROR] Impossible d'ouvrir le port série : {e}")
         exit()
 
-def format_and_save_to_redis(raw_data):
-    """Formate les données reçues et les enregistre dans Redis au format JSON."""
+def format_and_publish_to_mqtt(raw_data, mqtt_client):
+    """Formate les données reçues et les publie sur un topic MQTT."""
     try:
         # Chargement des données JSON
         data_list = json.loads(raw_data)
@@ -54,37 +52,42 @@ def format_and_save_to_redis(raw_data):
         for sensor_data in data_list:
             formatted_sensor = {new_key: sensor_data[old_key] for new_key, old_key in FIELD_MAPPING.items() if old_key in sensor_data}
             formatted_sensor['id'] = sensor_data['id']  # Ajout de l'ID sans mapping
+            formatted_sensor['timestamp'] = datetime.now().isoformat()  # Ajout du timestamp
 
-            # Ajout dans Redis au format JSON
-            timestamp = datetime.now().isoformat()
-            key = f"capteur:{formatted_sensor['id']}"
-            redis_client.json().set(key, '$', formatted_sensor)
-
-            print(f"[INFO] Données formatées et ajoutées à Redis : {key} -> {formatted_sensor}")
+            # Publication sur MQTT
+            mqtt_client.publish(MQTT_TOPIC, json.dumps(formatted_sensor))
+            print(f"[INFO] Données publiées sur MQTT : {formatted_sensor}")
     except json.JSONDecodeError as e:
         print(f"[ERROR] Erreur de décodage JSON : {e}")
     except Exception as e:
-        print(f"[ERROR] Erreur lors du formatage ou de l'ajout des données à Redis : {e}")
+        print(f"[ERROR] Erreur lors du formatage ou de la publication des données : {e}")
 
-def read_from_uart():
-    """Lit les données depuis le port série, les formate et les stocke dans Redis."""
+def read_from_uart(mqtt_client):
+    """Lit les données depuis le port série et les publie sur MQTT."""
     try:
         while True:
             # Lecture d'une ligne complète depuis le port série
             line = ser.readline().decode('utf-8').strip()
             if line:
                 print(f"[INFO] Données reçues : {line}")
-                format_and_save_to_redis(line)
+                format_and_publish_to_mqtt(line, mqtt_client)
     except Exception as e:
         print(f"[ERROR] Erreur lors de la lecture depuis le port série : {e}")
 
 if __name__ == "__main__":
     init_uart()
-    print("[INFO] Lecture des données depuis le Micro:bit...")
+
+    # Initialisation du client MQTT
+    mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
+    mqtt_client.loop_start()
+
+    print("[INFO] Lecture des données depuis le Micro:bit et publication sur MQTT...")
     try:
-        read_from_uart()
+        read_from_uart(mqtt_client)
     except KeyboardInterrupt:
         print("[INFO] Arrêt du programme par l'utilisateur.")
     finally:
         ser.close()
-        print("[INFO] Port série fermé.")
+        mqtt_client.disconnect()
+        print("[INFO] Port série fermé et déconnexion MQTT.")

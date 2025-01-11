@@ -7,7 +7,7 @@ import time
 app = Flask(__name__)
 
 # Connexion à la base de données Redis
-redis_client = redis.StrictRedis(host='10.42.228.117', port=26379, db=0, decode_responses=True)
+redis_client = redis.StrictRedis(host='localhost', port=26379, db=0, decode_responses=True)
 
 # Route qui accepte une requête GET pour récupérer tous les capteurs
 @app.route('/api/capteurs', methods=['GET'])

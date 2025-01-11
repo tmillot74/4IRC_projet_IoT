@@ -9,6 +9,7 @@ services:
       - redis-stack-data-1:/data
     networks:
       - redis-stack-network-1
+
   redis-stack-2:
     image: redis/redis-stack:latest
     container_name: redis-stack-2
@@ -20,9 +21,40 @@ services:
     networks:
       - redis-stack-network-2
 
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    volumes:
+      - grafana-data:/var/lib/grafana
+    restart: unless-stopped
+    ports:
+      - 3000:3000
+    networks:
+      - redis-stack-network-2
+    depends_on:
+      - redis-stack-2
+    environment:
+      - GF_INSTALL_PLUGINS=redis-datasource
+
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: mosquitto
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    ports:
+      - 1883:1883
+      - 9001:9001
+    networks:
+      - redis-stack-network-2
+    depends_on:
+      - redis-stack-2
+
 volumes:
   redis-stack-data-1:
   redis-stack-data-2:
+  grafana-data:
 
 networks:
   redis-stack-network-1:
