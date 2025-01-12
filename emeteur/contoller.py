@@ -106,7 +106,7 @@ def periodic_thread_runner():
     def run_thread():
         nonlocal last_execution_time
         with thread_lock:
-            if time.time() - last_execution_time >= 10:
+            if time.time() - last_execution_time >= 5:
                 print("[INFO] Lancement du thread de récupération et envoi des données.")
                 fetch_and_send_data()
                 last_execution_time = time.time()

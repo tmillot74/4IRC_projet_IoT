@@ -34,7 +34,7 @@ services:
     depends_on:
       - redis-stack-2
     environment:
-      - GF_INSTALL_PLUGINS=redis-datasource
+      - GF_INSTALL_PLUGINS=redis-datasource, grafana-mqtt-datasource
 
   mosquitto:
     image: eclipse-mosquitto:latest
