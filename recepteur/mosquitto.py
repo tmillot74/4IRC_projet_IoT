@@ -32,6 +32,7 @@ def save_to_stream(sensor_data):
             'coordonneeY': sensor_data.get('coordonneeY'),
             'temperature': sensor_data.get('temperature'),
             'portee': sensor_data.get('portee'),
+            'etat': sensor_data.get('etat')
         }
 
         # Ajout des données dans le stream spécifique au capteur
